@@ -1,0 +1,5 @@
+- id: missing-error-messages
+  name: missing-error-messages-hook
+  entry: missing-error-messages-hook
+  description: pre-commit hooks for localization error messages
+  language: python
