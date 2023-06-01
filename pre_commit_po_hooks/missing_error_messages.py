@@ -121,10 +121,13 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("filenames", nargs="*", help="Filenames to check for untranslated messages")
-    parser.add_argument("po-filepath", dest="po_filepath", help="Path to .po file storing all error messages to translate")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Supress output")
+    parser.add_argument("-po-filepath", dest="po_filepath", required=True, help="Path to .po file storing all error messages to translate")
+    parser.add_argument("-q", "--quiet", action="store_true", required=False, default=False, help="Supress output")
 
     args = parser.parse_args()
+
+    if not args.filenames:
+        return 0
 
     return Check(filenames=args.filenames, quiet=args.quiet, po_filepath=args.po_filepath).execute()
 
