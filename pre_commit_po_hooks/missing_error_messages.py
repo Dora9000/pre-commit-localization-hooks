@@ -34,6 +34,14 @@ class Check:
         self.repo_directory = repo_directory
         self.quiet = quiet
 
+        if not self.quiet:
+            sys.stdout.write(
+                f"Run with args: \n"
+                f"`errors_patterns`: {self.errors_patterns},\n"
+                f"`repo_directory`: {self.repo_directory},\n"
+                f"`po_filepath`: {self.po_filepath}\n"
+            )
+
     @staticmethod
     def _get_error_message(line: str) -> str:
         return line.split('=')[1].strip().replace('"', "")
@@ -98,7 +106,13 @@ class Check:
 
         errors = set(itertools.chain.from_iterable(self.load_errors(filename=filename) for filename in self.filenames))
 
+        if not self.quiet:
+            sys.stdout.write("Found error files: " + str(self.filenames) + '\n')
+
         if sorted(list(errors)) != sorted(list(translated_msgs)):
+            if not self.quiet:
+                sys.stdout.write(f"Discrepancy found. {len(errors)} msgs, {len(translated_msgs)} in .po file.\n")
+
             self.update_po_file(errors)
             if not self.quiet:
                 raise Exception("File .po was updated.\n")
@@ -114,8 +128,7 @@ class Check:
 
     def load_po(self) -> set[str]:
         if not os.path.isfile(self.po_filepath):
-            if not self.quiet:
-                raise Exception("File .po was not found.\n")
+            raise Exception("File .po was not found.\n")
 
         with open(self.po_filepath) as f:
             catalog = read_po(f)
