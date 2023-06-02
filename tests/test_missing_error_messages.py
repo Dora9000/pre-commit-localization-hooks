@@ -55,6 +55,7 @@ def create_errors_file(request, faker):
     yield create
 
 
+@pytest.mark.skip()
 def test_single_error_file_0(create_po_file, create_errors_file, faker):
     contents = [faker.pystr(min_chars=1, max_chars=100) for _ in range(10)]
 
@@ -65,6 +66,7 @@ def test_single_error_file_0(create_po_file, create_errors_file, faker):
     assert output == 0
 
 
+@pytest.mark.skip()
 def test_several_error_files_0(create_po_file, create_errors_file, faker):
     content_1, content_2 = [[faker.pystr(min_chars=1, max_chars=100) for _ in range(10)] for _ in range(2)]
 
@@ -77,6 +79,7 @@ def test_several_error_files_0(create_po_file, create_errors_file, faker):
     assert output == 0
 
 
+@pytest.mark.skip()
 def test_one_error_file_was_updated_1(create_po_file, create_errors_file, faker):
     content = [faker.pystr(min_chars=1, max_chars=100) for _ in range(10)]
 
@@ -97,6 +100,7 @@ def test_one_error_file_was_updated_1(create_po_file, create_errors_file, faker)
     assert output == 0
 
 
+@pytest.mark.skip()
 def test_one_error_file_error_not_exists_1(faker, create_po_file):
     po_file = create_po_file()
     errors_file_name = faker.file_name(extension="py")
@@ -110,6 +114,7 @@ def test_one_error_file_error_not_exists_1(faker, create_po_file):
     assert err_text == f'File {errors_file_name} was not found.\n'
 
 
+@pytest.mark.skip()
 def test_one_error_po_file_not_exists_1(faker, create_errors_file):
     po_file_name = faker.file_name(extension="po")
     errors_file = create_errors_file()

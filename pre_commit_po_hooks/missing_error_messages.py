@@ -13,41 +13,32 @@ from babel.messages.pofile import read_po, write_po
 from pathlib import Path
 
 
-
 class Check:
 
     quiet: bool
     po_filepath: str
     catalog = None
     repo_directory: str | None
-    filenames: list[Path] = None
+    filenames: list[Path] = []
     errors_patterns: list[str] | None
 
     def __init__(
         self,
         quiet: bool,
         po_filepath: str,
-        filenames: list[str] | None = None,
-        errors_patterns: list[str] | None = None,
         repo_directory: str | None = None,
+        errors_patterns: list[str] | None = None,
     ):
         self.errors_patterns = errors_patterns
         self.po_filepath = po_filepath
         self.repo_directory = repo_directory
         self.quiet = quiet
-        self.filenames = filenames
-
-        if self.filenames is None:
-            assert self.repo_directory is not None and self.errors_patterns is not None
 
     @staticmethod
     def _get_error_message(line: str) -> str:
         return line.split('=')[1].strip().replace('"', "")
 
     def get_errors_filenames(self) -> list[Path]:
-        if self.filenames is not None:
-            return self.filenames
-
         try:
             self.filenames = []
             for pattern in self.errors_patterns:
@@ -150,17 +141,12 @@ class Check:
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--repo_directory", required=False, help="Path to repository containing errors.py files")
-    parser.add_argument("-q", "--quiet", action="store_true", required=False, default=False, help="Supress output")
+    parser.add_argument("filenames", nargs="*", help="Changed files")
+    parser.add_argument("-q", "--quiet", required=False, default=False, help="Supress output")
+    parser.add_argument("--repo_directory", required=True, help="Path to repository containing errors.py files")
     parser.add_argument("--po_filepath", required=True, help="Path to .po file storing all error messages to translate")
     parser.add_argument(
         "--errors_patterns", required=False, nargs='*', default=["errors.py"], help="Pattern of errors.py filenames"
-    )
-    parser.add_argument(
-        "--filenames",
-        required=False,
-        nargs="*",
-        help="Filenames to check for untranslated messages. If passed, `errors_patterns` and `repo_directory` will be disabled."
     )
 
     args = parser.parse_args()
@@ -170,7 +156,6 @@ def main():
 
     return Check(
         quiet=args.quiet,
-        filenames=args.filenames,
         po_filepath=args.po_filepath,
         repo_directory=args.repo_directory,
         errors_patterns=args.errors_patterns,
