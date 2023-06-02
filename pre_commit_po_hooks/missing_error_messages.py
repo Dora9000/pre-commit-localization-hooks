@@ -7,28 +7,56 @@ import argparse
 import itertools
 import sys
 import os.path
-
 from babel.messages import Catalog
 from babel.messages.pofile import read_po, write_po
 
-
+from pathlib import Path
 
 
 
 class Check:
-    filenames: list[str]
+
     quiet: bool
     po_filepath: str
     catalog = None
+    repo_directory: str | None
+    filenames: list[Path] = None
+    errors_patterns: list[str] | None
 
-    def __init__(self, filenames: list[str], quiet: bool, po_filepath: str):
+    def __init__(
+        self,
+        quiet: bool,
+        po_filepath: str,
+        filenames: list[str] | None = None,
+        errors_patterns: list[str] | None = None,
+        repo_directory: str | None = None,
+    ):
+        self.errors_patterns = errors_patterns
         self.po_filepath = po_filepath
-        self.filenames = filenames
+        self.repo_directory = repo_directory
         self.quiet = quiet
+        self.filenames = filenames
+
+        if self.filenames is None:
+            assert self.repo_directory is not None and self.errors_patterns is not None
 
     @staticmethod
     def _get_error_message(line: str) -> str:
         return line.split('=')[1].strip().replace('"', "")
+
+    def get_errors_filenames(self) -> list[Path]:
+        if self.filenames is not None:
+            return self.filenames
+
+        try:
+            self.filenames = []
+            for pattern in self.errors_patterns:
+                self.filenames += [p.parent / p.name for p in Path(self.repo_directory).rglob(pattern)]
+        except Exception:
+            if not self.quiet:
+                raise Exception("Incorrect error filename pattern.\n")
+
+        return self.filenames
 
     def update_po_file(self, errors: set[str]) -> None:
         new_catalog = Catalog(
@@ -57,9 +85,11 @@ class Check:
 
         Parameters
         ----------
+        errors_patterns : list[str]
+          Pattern of errors.py filenames
 
-        filenames : list
-          Set of file names to check.
+        repo_directory : str
+          Path to repository containing errors.py files
 
         po_filepath : string
           Path to .po file storing all error messages to translate.
@@ -73,6 +103,7 @@ class Check:
         int: 0 if no missed messages found, 1 otherwise.
         """
         translated_msgs = self.load_po()
+        self.filenames = self.get_errors_filenames()
 
         errors = set(itertools.chain.from_iterable(self.load_errors(filename=filename) for filename in self.filenames))
 
@@ -91,7 +122,6 @@ class Check:
             return 1
 
     def load_po(self) -> set[str]:
-
         if not os.path.isfile(self.po_filepath):
             if not self.quiet:
                 raise Exception("File .po was not found.\n")
@@ -101,7 +131,7 @@ class Check:
             self.catalog = catalog
         return set(message.id for message in catalog if message.id)
 
-    def load_errors(self, filename: str) -> set[str]:
+    def load_errors(self, filename: Path) -> set[str]:
         errors = set()
 
         if not os.path.isfile(filename):
@@ -120,17 +150,31 @@ class Check:
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("filenames", nargs="*", help="Filenames to check for untranslated messages")
-    parser.add_argument("-po-filepath", dest="po_filepath", required=True, help="Path to .po file storing all error messages to translate")
+    parser.add_argument("--repo_directory", required=False, help="Path to repository containing errors.py files")
     parser.add_argument("-q", "--quiet", action="store_true", required=False, default=False, help="Supress output")
+    parser.add_argument("--po_filepath", required=True, help="Path to .po file storing all error messages to translate")
+    parser.add_argument(
+        "--errors_patterns", required=False, nargs='*', default=["errors.py"], help="Pattern of errors.py filenames"
+    )
+    parser.add_argument(
+        "--filenames",
+        required=False,
+        nargs="*",
+        help="Filenames to check for untranslated messages. If passed, `errors_patterns` and `repo_directory` will be disabled."
+    )
 
     args = parser.parse_args()
 
     if not args.filenames:
         return 0
 
-    return Check(filenames=args.filenames, quiet=args.quiet, po_filepath=args.po_filepath).execute()
-
+    return Check(
+        quiet=args.quiet,
+        filenames=args.filenames,
+        po_filepath=args.po_filepath,
+        repo_directory=args.repo_directory,
+        errors_patterns=args.errors_patterns,
+    ).execute()
 
 
 if __name__ == "__main__":
