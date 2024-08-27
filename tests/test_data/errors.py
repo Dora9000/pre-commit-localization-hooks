@@ -11,4 +11,7 @@ class ErrorEnum(BaseEnum):
     NOT_ENOUGH_MONEY = "Not enough money."
     CHAT_MESSAGE_TOO_LONG = "Chat message longer than {0} chars."
     HAVE_NOT_ACTIVE_USERS_IN_CHAT = "Drop can’t be made. Not enough active players in chat. Try again later"
+    LONG = (
+        "You have been blocked. You have been blocked. You have been blocked. You have been blocked. You have been blo"
+    )
 

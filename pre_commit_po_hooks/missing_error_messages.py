@@ -37,7 +37,8 @@ class Check:
         try:
             for pattern in self.errors_patterns:
                 filenames += [
-                    p for p in Path(self.repo_directory).rglob(pattern) if not any(x.startswith('.') for x in p.parts)
+                    p for p in Path(self.repo_directory).rglob(pattern)
+                    if not any(x.startswith('.') or x.startswith('_') for x in p.parts)
                 ]
         except Exception:
             raise Exception("Incorrect error filename pattern.\n")
@@ -114,7 +115,7 @@ class Check:
         if res2 and not self.quiet:
             raise Exception("Non default .po files were updated.\n")
 
-        return max(sum([res1, res2]), 1)
+        return min(sum([res1, res2]), 1)
 
     def execute(self):
         try:

@@ -1,3 +1,4 @@
+import ast
 import os
 from pathlib import Path
 
@@ -50,9 +51,12 @@ def load_py(filenames: list[Path]) -> set[str]:
             raise Exception(f"File {filename} was not found.\n")
 
         with open(filename) as f:
-            content_lines = f.readlines()
-            for i, line in enumerate(content_lines):
-                if '=' in line and (error_msg := _get_error_message(line)):
-                    errors.add(error_msg)
+            content = f.read()
+
+        content = ast.parse(content)
+
+        for node in content.body:
+            if isinstance(node, ast.ClassDef):
+                errors |= set(enum_field.value.value for enum_field in node.body)
 
     return errors
