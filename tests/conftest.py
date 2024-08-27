@@ -11,8 +11,8 @@ print(a)
 SKIP_TESTS = False
 TEST_DIR = pathlib.Path(__file__).parent.resolve() / "test_data" / "tmp"
 
-PO_FILE = pathlib.Path(__file__).parent.resolve() / "test_data" / "test_en.po"
-PY_FILE = pathlib.Path(__file__).parent.resolve() / "test_data" / "test_errors.py"
+PO_FILE = pathlib.Path(__file__).parent.resolve() / "test_data" / "default_en.po"
+PY_FILE = pathlib.Path(__file__).parent.resolve() / "test_data" / "default_errors.py"
 
 
 

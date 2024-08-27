@@ -22,7 +22,6 @@ def test_single_error_file_0(create_po_file, create_errors_file):
 
     output = Check(repo_directory=str(TEST_DIR), quiet=False, po_filepath=po_file.name, errors_patterns=["*.py"]).execute()
 
-
     sleep(1000)
     assert output == 0
 

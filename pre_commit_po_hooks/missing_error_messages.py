@@ -17,22 +17,16 @@ class Check:
 
     quiet: bool
     po_filepath: str
-    catalog = None
-    repo_directory: str | None
-    filenames: list[Path] = []
-    errors_patterns: list[str] | None
+    repo_directory: str
+    errors_patterns: list[str]
 
-    def __init__(
-        self,
-        quiet: bool,
-        po_filepath: str,
-        repo_directory: str | None = None,
-        errors_patterns: list[str] | None = None,
-    ):
-        self.errors_patterns = errors_patterns
+    _catalog = None
+
+    def __init__(self, quiet: bool, po_filepath: str, repo_directory: str, errors_patterns: list[str]):
+        self.quiet = quiet
         self.po_filepath = po_filepath
         self.repo_directory = repo_directory
-        self.quiet = quiet
+        self.errors_patterns = errors_patterns
 
         if not self.quiet:
             sys.stdout.write(
@@ -47,37 +41,67 @@ class Check:
         return line.split('=')[1].strip().replace('"', "")
 
     def get_errors_filenames(self) -> list[Path]:
+        filenames = []
         try:
-            self.filenames = []
             for pattern in self.errors_patterns:
-                self.filenames += [p.parent / p.name for p in Path(self.repo_directory).rglob(pattern)]
+                filenames += [p.parent / p.name for p in Path(self.repo_directory).rglob(pattern)]
         except Exception:
-            if not self.quiet:
-                raise Exception("Incorrect error filename pattern.\n")
+            raise Exception("Incorrect error filename pattern.\n")
 
-        return self.filenames
+        if not self.quiet:
+            sys.stdout.write("Found error files: " + str(filenames) + '\n')
+
+        return filenames
 
     def update_po_file(self, errors: set[str]) -> None:
         new_catalog = Catalog(
-            fuzzy=self.catalog.fuzzy,
-            locale=self.catalog.locale,
-            domain=self.catalog.domain,
-            charset=self.catalog.charset,
-            project=self.catalog.project,
-            version=self.catalog.version,
-            creation_date=self.catalog.creation_date,
-            revision_date=self.catalog.revision_date,
-            language_team=self.catalog.language_team,
-            header_comment=self.catalog.header_comment,
-            last_translator=self.catalog.last_translator,
-            copyright_holder=self.catalog.copyright_holder,
-            msgid_bugs_address=self.catalog.msgid_bugs_address,
+            fuzzy=self._catalog.fuzzy,
+            locale=self._catalog.locale,
+            domain=self._catalog.domain,
+            charset=self._catalog.charset,
+            project=self._catalog.project,
+            version=self._catalog.version,
+            creation_date=self._catalog.creation_date,
+            revision_date=self._catalog.revision_date,
+            language_team=self._catalog.language_team,
+            header_comment=self._catalog.header_comment,
+            last_translator=self._catalog.last_translator,
+            copyright_holder=self._catalog.copyright_holder,
+            msgid_bugs_address=self._catalog.msgid_bugs_address,
         )
         for error in errors:
             new_catalog.add(error, error)
 
         with open(self.po_filepath, 'wb') as outfile:
             write_po(outfile, catalog=new_catalog, width=100, sort_output=True)
+
+        if not self.quiet:
+            raise Exception("File .po was updated.\n")
+
+
+    def load_po(self) -> set[str]:
+        if not os.path.isfile(self.po_filepath):
+            raise Exception("File .po was not found.\n")
+
+        with open(self.po_filepath) as f:
+            self._catalog = read_po(f)
+
+        return set(message.id for message in self._catalog if message.id)
+
+    def load_errors(self, filename: Path) -> set[str]:
+        errors = set()
+
+        if not os.path.isfile(filename):
+            raise Exception(f"File {filename} was not found.\n")
+
+        with open(filename) as f:
+            content_lines = f.readlines()
+            for i, line in enumerate(content_lines):
+                if '=' in line and (error_msg := self._get_error_message(line)):
+                    errors.add(error_msg)
+
+        return errors
+
 
     def _execute(self):
         """Warns about all missed error messages found in filenames that not included in PO files.
@@ -101,21 +125,14 @@ class Check:
 
         int: 0 if no missed messages found, 1 otherwise.
         """
-        translated_msgs = self.load_po()
-        self.filenames = self.get_errors_filenames()
+        po_data = self.load_po()
+        py_data = set(itertools.chain.from_iterable(self.load_errors(filename=filename) for filename in self.get_errors_filenames()))
 
-        errors = set(itertools.chain.from_iterable(self.load_errors(filename=filename) for filename in self.filenames))
-
-        if not self.quiet:
-            sys.stdout.write("Found error files: " + str(self.filenames) + '\n')
-
-        if sorted(list(errors)) != sorted(list(translated_msgs)):
+        if sorted(list(py_data)) != sorted(list(po_data)):
             if not self.quiet:
-                sys.stdout.write(f"Discrepancy found. {len(errors)} msgs, {len(translated_msgs)} in .po file.\n")
+                sys.stdout.write(f"Discrepancy found. {len(py_data)} msgs, {len(po_data)} in .po file.\n")
 
-            self.update_po_file(errors)
-            if not self.quiet:
-                raise Exception("File .po was updated.\n")
+            self.update_po_file(py_data)
 
         return 0
 
@@ -125,30 +142,6 @@ class Check:
         except Exception as e:
             sys.stderr.write(str(e) or f"Hook error happened: {repr(e)}")
             return 1
-
-    def load_po(self) -> set[str]:
-        if not os.path.isfile(self.po_filepath):
-            raise Exception("File .po was not found.\n")
-
-        with open(self.po_filepath) as f:
-            catalog = read_po(f)
-            self.catalog = catalog
-        return set(message.id for message in catalog if message.id)
-
-    def load_errors(self, filename: Path) -> set[str]:
-        errors = set()
-
-        if not os.path.isfile(filename):
-            if not self.quiet:
-                raise Exception(f"File {filename} was not found.\n")
-
-        with open(filename) as f:
-            content_lines = f.readlines()
-            for i, line in enumerate(content_lines):
-                if '=' in line and (error_msg := self._get_error_message(line)):
-                    errors.add(error_msg)
-
-        return errors
 
 
 def main():
