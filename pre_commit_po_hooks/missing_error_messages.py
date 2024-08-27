@@ -4,13 +4,10 @@ Returns an error code if a found an error message not included in PO file.
 """
 
 import argparse
-import itertools
 import sys
-import os.path
-from babel.messages import Catalog
-from babel.messages.pofile import read_po, write_po
-
 from pathlib import Path
+
+from pre_commit_po_hooks import utils
 
 
 class Check:
@@ -36,10 +33,6 @@ class Check:
                 f"`po_filepath`: {self.po_filepath}\n"
             )
 
-    @staticmethod
-    def _get_error_message(line: str) -> str:
-        return line.split('=')[1].strip().replace('"', "")
-
     def get_errors_filenames(self) -> list[Path]:
         filenames = []
         try:
@@ -52,55 +45,6 @@ class Check:
             sys.stdout.write("Found error files: " + str(filenames) + '\n')
 
         return filenames
-
-    def update_po_file(self, errors: set[str]) -> None:
-        new_catalog = Catalog(
-            fuzzy=self._catalog.fuzzy,
-            locale=self._catalog.locale,
-            domain=self._catalog.domain,
-            charset=self._catalog.charset,
-            project=self._catalog.project,
-            version=self._catalog.version,
-            creation_date=self._catalog.creation_date,
-            revision_date=self._catalog.revision_date,
-            language_team=self._catalog.language_team,
-            header_comment=self._catalog.header_comment,
-            last_translator=self._catalog.last_translator,
-            copyright_holder=self._catalog.copyright_holder,
-            msgid_bugs_address=self._catalog.msgid_bugs_address,
-        )
-        for error in errors:
-            new_catalog.add(error, error)
-
-        with open(self.po_filepath, 'wb') as outfile:
-            write_po(outfile, catalog=new_catalog, width=100, sort_output=True)
-
-        if not self.quiet:
-            raise Exception("File .po was updated.\n")
-
-
-    def load_po(self) -> set[str]:
-        if not os.path.isfile(self.po_filepath):
-            raise Exception("File .po was not found.\n")
-
-        with open(self.po_filepath) as f:
-            self._catalog = read_po(f)
-
-        return set(message.id for message in self._catalog if message.id)
-
-    def load_errors(self, filename: Path) -> set[str]:
-        errors = set()
-
-        if not os.path.isfile(filename):
-            raise Exception(f"File {filename} was not found.\n")
-
-        with open(filename) as f:
-            content_lines = f.readlines()
-            for i, line in enumerate(content_lines):
-                if '=' in line and (error_msg := self._get_error_message(line)):
-                    errors.add(error_msg)
-
-        return errors
 
 
     def _execute(self):
@@ -125,14 +69,18 @@ class Check:
 
         int: 0 if no missed messages found, 1 otherwise.
         """
-        po_data = self.load_po()
-        py_data = set(itertools.chain.from_iterable(self.load_errors(filename=filename) for filename in self.get_errors_filenames()))
+        po_data, self._catalog = utils.load_po(self.po_filepath)
+        py_data = utils.load_py(filenames=self.get_errors_filenames())
 
         if sorted(list(py_data)) != sorted(list(po_data)):
             if not self.quiet:
                 sys.stdout.write(f"Discrepancy found. {len(py_data)} msgs, {len(po_data)} in .po file.\n")
 
-            self.update_po_file(py_data)
+            utils.update_po_file(errors=py_data, catalog=self._catalog, po_filepath=self.po_filepath)
+            if not self.quiet:
+                raise Exception("File .po was updated.\n")
+
+            return 1
 
         return 0
 
