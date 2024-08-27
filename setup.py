@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 name = 'pre_commit_localization_hooks'
-version = '2.0.0'
+version = '2.0.1'
 description = 'pre-commit hooks for localization error messages'
 
 # Package dependencies
