@@ -4,6 +4,7 @@ Returns an error code if a found an error message not included in PO file.
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -13,15 +14,13 @@ from pre_commit_po_hooks import utils
 class Check:
 
     quiet: bool
-    po_filepath: str
+    po_dir: str
     repo_directory: str
     errors_patterns: list[str]
 
-    _catalog = None
-
-    def __init__(self, quiet: bool, po_filepath: str, repo_directory: str, errors_patterns: list[str]):
+    def __init__(self, quiet: bool, po_dir: str, repo_directory: str, errors_patterns: list[str]):
         self.quiet = quiet
-        self.po_filepath = po_filepath
+        self.po_dir = po_dir
         self.repo_directory = repo_directory
         self.errors_patterns = errors_patterns
 
@@ -30,10 +29,10 @@ class Check:
                 f"Run with args: \n"
                 f"`errors_patterns`: {self.errors_patterns},\n"
                 f"`repo_directory`: {self.repo_directory},\n"
-                f"`po_filepath`: {self.po_filepath}\n"
+                f"`po_dir`: {self.po_dir}\n"
             )
 
-    def get_errors_filenames(self) -> list[Path]:
+    def get_py_filenames(self) -> list[Path]:
         filenames = []
         try:
             for pattern in self.errors_patterns:
@@ -46,6 +45,37 @@ class Check:
 
         return filenames
 
+    def get_po_filenames(self, po_dir: str) -> list[Path]:
+        return [p.parent / p.name for p in Path(po_dir).rglob("*.po") if os.path.isfile(p.parent / p.name)]
+
+    def update_en_po(self, poes_data: dict, py_objects: set[str]) -> int:
+        (filename, catalog), *_ = [(filename, catalog) for filename, catalog in poes_data.items() if catalog.locale_identifier == 'en']
+        po_objects = set(message.id for message in catalog if message.id)
+
+        if sorted(list(py_objects)) != sorted(list(po_objects)):
+            utils.update_po_file(errors=set((e, e) for e in py_objects), catalog=catalog, po_filepath=Path(self.po_dir) / filename)
+            return 1
+
+        return 0
+
+    def update_non_en_po(self, poes_data: dict, py_objects: set[str]) -> int:
+        res = 0
+
+        for filename, catalog in poes_data.items():
+            if catalog.locale_identifier == 'en':
+                continue
+
+            messages = {message.id: message.string for message in catalog if message.id}
+
+            if messages.keys() - py_objects:
+                res = 1
+                utils.update_po_file(
+                    catalog=catalog,
+                    po_filepath=Path(self.po_dir) / filename,
+                    errors=set((message_id, message_text) for message_id, message_text in messages.items() if message_id in py_objects),
+                )
+
+        return res
 
     def _execute(self):
         """Warns about all missed error messages found in filenames that not included in PO files.
@@ -58,8 +88,8 @@ class Check:
         repo_directory : str
           Path to repository containing errors.py files
 
-        po_filepath : string
-          Path to .po file storing all error messages to translate.
+        po_dir : string
+          Path to dir with .po files.
 
         quiet : bool, optional
           Enabled, don't print output to stderr when an untranslated message is found.
@@ -69,20 +99,20 @@ class Check:
 
         int: 0 if no missed messages found, 1 otherwise.
         """
-        po_data, self._catalog = utils.load_po(self.po_filepath)
-        py_data = utils.load_py(filenames=self.get_errors_filenames())
+        py_objects = utils.load_py(filenames=self.get_py_filenames())
 
-        if sorted(list(py_data)) != sorted(list(po_data)):
-            if not self.quiet:
-                sys.stdout.write(f"Discrepancy found. {len(py_data)} msgs, {len(po_data)} in .po file.\n")
+        poes_data = {f.name: utils.load_po(po_filepath=f) for f in self.get_po_filenames(self.po_dir)}
 
-            utils.update_po_file(errors=py_data, catalog=self._catalog, po_filepath=self.po_filepath)
-            if not self.quiet:
-                raise Exception("File .po was updated.\n")
+        res1 = self.update_en_po(poes_data, py_objects=py_objects)
+        res2 = self.update_non_en_po(poes_data, py_objects=py_objects)
 
-            return 1
+        if res1 and not self.quiet:
+            raise Exception("File .po was updated.\n")
 
-        return 0
+        if res2 and not self.quiet:
+            raise Exception("Non default .po files were updated.\n")
+
+        return max(sum([res1, res2]), 1)
 
     def execute(self):
         try:
@@ -98,7 +128,7 @@ def main():
     parser.add_argument("filenames", nargs="*", help="Changed files")
     parser.add_argument("-q", "--quiet", required=False, default=False, help="Supress output")
     parser.add_argument("--repo_directory", required=True, help="Path to repository containing errors.py files")
-    parser.add_argument("--po_filepath", required=True, help="Path to .po file storing all error messages to translate")
+    parser.add_argument("--po_dir", required=True, help="Path to dir with .po files")
     parser.add_argument(
         "--errors_patterns", required=False, nargs='*', default=["errors.py"], help="Pattern of errors.py filenames"
     )
@@ -110,7 +140,7 @@ def main():
 
     return Check(
         quiet=args.quiet,
-        po_filepath=args.po_filepath,
+        po_dir=args.po_dir,
         repo_directory=args.repo_directory,
         errors_patterns=args.errors_patterns,
     ).execute()
