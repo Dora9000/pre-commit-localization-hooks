@@ -36,7 +36,9 @@ class Check:
         filenames = []
         try:
             for pattern in self.errors_patterns:
-                filenames += [p.parent / p.name for p in Path(self.repo_directory).rglob(pattern)]
+                filenames += [
+                    p for p in Path(self.repo_directory).rglob(pattern) if not any(x.startswith('.') for x in p.parts)
+                ]
         except Exception:
             raise Exception("Incorrect error filename pattern.\n")
 

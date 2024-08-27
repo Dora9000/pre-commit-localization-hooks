@@ -4,7 +4,6 @@ import pytest
 import pathlib
 
 
-SKIP_TESTS = False
 TEST_DIR = pathlib.Path(__file__).parent.resolve() / "test_data" / "tmp"
 
 PY_FILE = pathlib.Path(__file__).parent.resolve() / "test_data" / "errors.py"
