@@ -35,7 +35,12 @@ msgstr ""
 
 @pytest.fixture
 def create_po_file(request, faker):
-    def create(is_from_file: bool = False, language: str = "en", contents: list[(str, str)] | None = None, file_dir: pathlib.Path = TEST_DIR):
+    def create(
+        is_from_file: bool = False,
+        language: str = "en",
+        contents: list[(str, str)] | None = None,
+        file_dir: pathlib.Path = TEST_DIR,
+    ):
         if is_from_file:
             assert language in PO_FILES and os.path.isfile(PO_FILES[language])
 

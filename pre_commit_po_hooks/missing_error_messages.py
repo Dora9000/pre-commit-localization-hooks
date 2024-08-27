@@ -52,11 +52,15 @@ class Check:
         return [p.parent / p.name for p in Path(po_dir).rglob("*.po") if os.path.isfile(p.parent / p.name)]
 
     def update_en_po(self, poes_data: dict, py_objects: set[str]) -> int:
-        (filename, catalog), *_ = [(filename, catalog) for filename, catalog in poes_data.items() if catalog.locale_identifier == 'en']
+        (filename, catalog), *_ = [
+            (filename, catalog) for filename, catalog in poes_data.items() if catalog.locale_identifier == 'en'
+        ]
         po_objects = set(message.id for message in catalog if message.id)
 
         if sorted(list(py_objects)) != sorted(list(po_objects)):
-            utils.update_po_file(errors=set((e, e) for e in py_objects), catalog=catalog, po_filepath=Path(self.po_dir) / filename)
+            utils.update_po_file(
+                errors=set((e, e) for e in py_objects), catalog=catalog, po_filepath=Path(self.po_dir) / filename
+            )
             return 1
 
         return 0
@@ -75,7 +79,10 @@ class Check:
                 utils.update_po_file(
                     catalog=catalog,
                     po_filepath=Path(self.po_dir) / filename,
-                    errors=set((message_id, message_text) for message_id, message_text in messages.items() if message_id in py_objects),
+                    errors=set(
+                        (message_id, message_text)
+                        for message_id, message_text in messages.items() if message_id in py_objects
+                    ),
                 )
 
         return res
