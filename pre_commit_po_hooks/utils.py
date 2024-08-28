@@ -39,12 +39,8 @@ def update_po_file(errors: set[(str, str)], catalog: Catalog, po_filepath: Path)
         write_po(outfile, catalog=new_catalog, width=100, sort_output=True)
 
 
-def _get_error_message(line: str) -> str:
-    return line.split('=')[1].strip().replace('"', "")
-
-
 def load_py(filenames: list[Path]) -> set[str]:
-    errors = set()
+    errors = []
 
     for filename in filenames:
         if not os.path.isfile(filename):
@@ -57,6 +53,9 @@ def load_py(filenames: list[Path]) -> set[str]:
 
         for node in content.body:
             if isinstance(node, ast.ClassDef):
-                errors |= set(enum_field.value.value for enum_field in node.body)
+                errors.extend(enum_field.value.value for enum_field in node.body)
 
-    return errors
+    if len(errors) != len(set(errors)):
+        raise Exception(f"Error messages are not unique.\n")
+
+    return set(errors)
