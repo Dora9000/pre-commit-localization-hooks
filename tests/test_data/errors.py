@@ -1,9 +1,9 @@
 from enum import unique
-from enum import StrEnum
+from core.settings import BaseEnum
 
 
 @unique
-class ErrorEnum(StrEnum):
+class ErrorEnum(BaseEnum):
     LANGUAGE_NOT_EXIST = "Language {0} does not exist."
     INVALID_CODE = "Invalid code."
     CHAT_BLOCKED_USER_NOT_ALWAYS = "You have been blocked due to a violation of the chat rules. Unblock date: {0}"
