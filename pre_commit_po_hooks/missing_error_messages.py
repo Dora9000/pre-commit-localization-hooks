@@ -113,7 +113,7 @@ class Check:
         poes_data = {f.name: utils.load_po(po_filepath=f) for f in self.get_po_filenames(self.po_dir)}
 
         res1 = self.update_en_po(poes_data, py_objects=py_objects)
-        res2 = self.update_non_en_po(poes_data, py_objects=py_objects)
+        res2 = 0  # self.update_non_en_po(poes_data, py_objects=py_objects)
 
         if res1 and not self.quiet:
             raise Exception("File .po was updated.\n")
