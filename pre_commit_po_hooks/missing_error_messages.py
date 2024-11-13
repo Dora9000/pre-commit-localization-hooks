@@ -147,6 +147,9 @@ def main():
     if not args.filenames:
         return 0
 
+    print(args.filenames)
+    print(type(args.filenames[0]))
+
     return Check(
         quiet=args.quiet,
         po_dir=args.po_dir,
